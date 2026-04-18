@@ -1,5 +1,5 @@
 {
-  "name": "@traid/mercadolibre-mcp",
+  "name": "@nahuelalbornoz/mercadolibre-mcp",
   "version": "1.0.0",
   "description": "MCP server completo para Mercado Libre — 11 tools de seller operations con write-back (update_price, update_stock, answer_question, manage_ads).",
   "license": "MIT",
