@@ -1,6 +1,10 @@
-# @traid/mercadolibre-mcp
+# @nahuelalbornoz/mercadolibre-mcp
 
-MCP server completo para Mercado Libre. 11 tools de operaciones de seller para usar desde Claude Code, Cursor, o cualquier cliente MCP.
+MCP server completo para Mercado Libre. 11 tools TRAID de operaciones de seller con write-back **+ proxy automático al MCP oficial de Mercado Libre** (siempre actualizado server-side). Para usar desde Claude Code, Cursor, o cualquier cliente MCP.
+
+```bash
+npx @nahuelalbornoz/mercadolibre-mcp
+```
 
 ## Tools disponibles
 
@@ -20,9 +24,45 @@ MCP server completo para Mercado Libre. 11 tools de operaciones de seller para u
 
 ## Setup
 
-Dos modos de autenticación:
+Tres modos de autenticación (en orden de prioridad — se elige el primero configurado):
 
-### Opción A: Token directo (recomendado si tenés n8n/cron renovando el token)
+### Opción A: Supabase (multi-tenant, **recomendado v1.1.0+**)
+
+El `access_token` se lee de una tabla `oauth_tokens` en Supabase. Ideal cuando un cron externo (n8n, scheduled job) refresca y persiste el token. Soporta múltiples clientes / cuentas via el campo `account_label`.
+
+Schema mínimo esperado:
+
+```sql
+create table oauth_tokens (
+  account_label text primary key,    -- ej: 'miami', 'cliente_a', 'cliente_b'
+  access_token  text not null,
+  refresh_token text,
+  expires_at    timestamptz,
+  updated_at    timestamptz default now()
+);
+```
+
+```json
+{
+  "mcpServers": {
+    "mercadolibre": {
+      "command": "npx",
+      "args": ["-y", "@nahuelalbornoz/mercadolibre-mcp"],
+      "env": {
+        "SUPABASE_URL": "https://YOUR_PROJECT.supabase.co",
+        "SUPABASE_SERVICE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
+        "ML_ACCOUNT_LABEL": "miami",
+        "ML_TOKEN_TABLE": "oauth_tokens",
+        "ML_SITE_ID": "MLA"
+      }
+    }
+  }
+}
+```
+
+Aliases aceptados: `NEXT_PUBLIC_SUPABASE_URL` (en lugar de `SUPABASE_URL`), `SUPABASE_SERVICE_ROLE_KEY` (en lugar de `SUPABASE_SERVICE_KEY`). El service_role bypassea RLS.
+
+### Opción B: Token directo (si tenés n8n/cron renovando el token)
 
 ```json
 {
@@ -39,7 +79,7 @@ Dos modos de autenticación:
 }
 ```
 
-### Opción B: Auto-refresh (standalone, sin dependencias externas)
+### Opción C: Auto-refresh (standalone, sin dependencias externas)
 
 1. Ir a [developers.mercadolibre.com](https://developers.mercadolibre.com)
 2. Crear aplicación → obtener `CLIENT_ID` y `CLIENT_SECRET`
@@ -83,13 +123,24 @@ Una vez configurado, Claude Code puede ejecutar directamente:
 - "Qué preguntas sin responder tengo?"
 - "Buscá competencia para repuestos de freno Toyota"
 
+## Proxy al MCP oficial (auto-actualizado)
+
+A partir de v1.1.0 el server, al arrancar, también conecta como cliente MCP al servidor oficial de Mercado Libre (`https://mcp.mercadolibre.com/mcp`) y re-registra todas sus tools con prefijo `official_`.
+
+**Beneficio:** cuando ML agrega/cambia endpoints, los ves automáticamente sin re-buildear este paquete. Las 11 tools TRAID locales conviven y siempre tienen prioridad sobre el upstream.
+
+**Failure mode:** si el upstream no es reachable al boot, se logea un warning y las 11 tools locales arrancan igual.
+
+**Desactivar:** `ML_SKIP_UPSTREAM_PROXY=1` en el env (útil para tests offline).
+
 ## Características
 
-- **OAuth2 auto-refresh**: El token se renueva automáticamente cada 6h
+- **OAuth2 auto-refresh**: El token se renueva automáticamente cada 6h (en modo C)
+- **Token shared via Supabase**: Multi-tenant, renovado por cron externo (en modo A)
+- **Upstream proxy**: surface oficial auto-actualizado server-side (v1.1.0+)
 - **Rate limiting**: Retry automático con backoff ante límites de la API
 - **Multi-get batching**: Consultas de múltiples items en lotes de 20
 - **Errores en español**: Mensajes de error claros, no JSON crudo
-- **Sin cache**: Datos siempre en tiempo real
 - **Validación Zod**: Cada parámetro validado antes de llamar a la API
 
 ## Desarrollo

@@ -1,7 +1,7 @@
 {
   "name": "@nahuelalbornoz/mercadolibre-mcp",
-  "version": "1.0.0",
-  "description": "MCP server completo para Mercado Libre — 11 tools de seller operations con write-back (update_price, update_stock, answer_question, manage_ads).",
+  "version": "1.1.0",
+  "description": "MCP server completo para Mercado Libre — 11 tools TRAID de seller (con write-back) + proxy al MCP oficial de ML (auto-actualizado server-side) + token-store Supabase multi-tenant.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@supabase/supabase-js": "^2.106.2",
     "zod": "^3.24.0"
   },
   "devDependencies": {

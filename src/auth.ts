@@ -1,8 +1,14 @@
-// OAuth2 para Mercado Libre — soporta 2 modos:
+// OAuth2 para Mercado Libre — soporta 3 modos (en orden de prioridad):
+// 0. Supabase (SUPABASE_URL + SUPABASE_SERVICE_KEY) — lee de oauth_tokens, refresheado por n8n
 // 1. Token directo (ML_ACCESS_TOKEN) — refresheado externamente por n8n/cron
 // 2. Auto-refresh (ML_CLIENT_ID + ML_CLIENT_SECRET + ML_REFRESH_TOKEN) — refresh interno cada 6h
 
 import type { MLConfig, TokenData } from './types.js'
+import {
+  isSupabaseModeEnabled,
+  getAccessTokenFromSupabase,
+  clearSupabaseTokenCache,
+} from './token-store.js'
 
 const ML_AUTH_URL = 'https://api.mercadolibre.com/oauth/token'
 
@@ -18,6 +24,11 @@ export function getConfig(): MLConfig {
 }
 
 export async function getAccessToken(): Promise<string> {
+  // Modo 0: Supabase (multi-tenant, refresheado por n8n)
+  if (isSupabaseModeEnabled()) {
+    return getAccessTokenFromSupabase()
+  }
+
   // Modo 1: Token directo (gestionado externamente por n8n, cron, etc.)
   const directToken = process.env.ML_ACCESS_TOKEN
   if (directToken) {
@@ -80,7 +91,8 @@ export async function getAccessToken(): Promise<string> {
   return cachedToken.accessToken
 }
 
-// Para tests o reset manual
+// Para tests o reset manual (limpia ambos caches)
 export function clearTokenCache(): void {
   cachedToken = null
+  clearSupabaseTokenCache()
 }
