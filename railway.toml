@@ -2,5 +2,4 @@
 builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "npx -y supergateway --stdio \"node dist/index.js\" --port 8000"
 restartPolicyType = "ON_FAILURE"
